@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>AO3 Work Popularity Prediction</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6;
+            color: #1f2937;
+        }
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #e5e7eb;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #9ca3af;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body class="flex min-h-screen bg-[#f8f8f8]"> 
+    <!-- Main application container -->
+    <div class="flex-1 p-8 overflow-y-auto">
+        <header class="mb-8">
+            <h1 class="text-3xl font-bold text-[#990000] flex items-center mb-2 bg-white p-2 rounded-lg shadow">
+                <i class="fa-solid fa-book-open text-[#990000] h-8 w-8 mr-5"></i>
+                AO3 Work Popularity Classifier
+            </h1>
+            <p class="text-lg text-gray-800">
+            This project leverages <span class="font-semibold text-[#990000]">machine learning</span> to classify AO3 works based on their popularity, helping uncover patterns in how readers engage with fanfiction.
+            </p>
+        </header>
+
+        <main class="grid grid-cols-1 gap-6">
+
+            <!-- Classifier Form -->
+            <div class="bg-white rounded-lg shadow-md p-6 border border-[#990000]/20">
+                <h2 class="text-xl font-semibold text-[#990000] flex items-center mb-6">
+                    <i class="fa-solid fa-book text-[#990000] h-6 w-6 mr-2"></i>
+                    Enter AO3 Work
+                </h2>
+
+                <!-- Grid layout: form on left, result on right -->
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    
+                    <!-- Left: Form -->
+                    <form id="predict-popularity" class="space-y-4">
+                        <div>
+                            <label for="url" class="block text-base font-semibold text-[#990000] mb-2">
+                                AO3 Work URL
+                            </label>
+                            <input type="text" id="url" name="url" 
+                                class="mt-2 block w-full border border-gray-300 rounded-md shadow-md px-4 py-3 text-lg focus:ring-[#990000] focus:border-[#990000]" 
+                                placeholder="Enter AO3 work URL (e.g., https://archiveofourown.org/works/12345678)">
+                        </div>
+                        <button type="submit" 
+                                class="w-full flex justify-center py-3 px-6 rounded-md shadow-md text-base font-semibold text-white bg-[#990000] hover:bg-red-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#990000]">
+                            🔮 Classify Work
+                        </button>
+                    </form>
+
+                    <!-- Right: Prediction Result -->
+                    <div id="prediction-status" class="flex flex-col items-center justify-center p-4 border-2 border-dashed border-[#990000] rounded-md text-gray-700 text-center">
+                        <p class="text-base">Your prediction result will appear here.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Metabase Dashboard -->
+            <div class="bg-white rounded-lg shadow-md p-6 border border-[#990000]/20">
+                <div class="flex items-center justify-between mb-4">
+                    <h2 class="text-xl font-semibold text-[#990000] flex items-center">
+                        <i class="fa-solid fa-chart-line text-[#990000] h-6 w-6 mr-2"></i>
+                        AO3 Popularity Dashboard
+                    </h2>
+                </div>
+                <div class="aspect-w-16 aspect-h-9 w-full rounded-md overflow-hidden border border-gray-300">
+                    <iframe id="metabase-iframe" src="http://localhost:3000/public/dashboard/bfe64134-6252-4e30-8570-653f9662827d" width="100%" height="600" frameborder="0" allowtransparency></iframe>
+                </div>
+            </div>
+
+        </main>
+        <footer class="mt-12">
+            <div class="bg-white p-4 rounded-lg shadow text-center">
+                <p class="text-base text-gray-700">
+                    This project was created by 
+                    <span class="font-semibold text-[#990000]">Angela Loro</span>
+                </p>
+            </div>
+        </footer>
+    </div>
+</body>
+
+<script>
+        // Set the base URL for the backend API
+        const BACKEND_URL = 'http://127.0.0.1:5001';
+
+        // hadnle the popularity prediction
+        async function handlePrediction() {
+            const form= document.getElementById("predict-popularity")
+            const statusMessage= document.getElementById("prediction-status")
+
+            form.addEventListener("submit", async (event) => {
+                event.preventDefault();
+
+                const formData= new FormData(form);
+                const data= Object.fromEntries(formData.entries());
+
+                statusMessage.textContent= "🔄 Processing request..." 
+                statusMessage.className= "mt-4 p-3 rounded-md bg-yellow-100 text-yellow-700";
+                statusMessage.style.display= "block";
+
+                try{
+                    const response = await fetch(`${BACKEND_URL}/predict`, {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify(data),
+                    });
+
+                    const result= await response.json();
+                    if(!response.ok){
+                        throw new Error(result.error || "An error occurred while processing your request.");
+                    }
+
+                    // Format and display record details
+                    const record = result.inserted_record;
+                    statusMessage.innerHTML = `
+                        <h3 class="text-lg font-semibold text-[#990000] mb-2">✅ Prediction Successful</h3>
+                        <p class="text-gray-800"><strong>Title:</strong> ${record.Title}</p>
+                        <p class="text-gray-800"><strong>Chapters:</strong> ${record.Chapters}</p>
+                        <p class="text-gray-800"><strong>Words:</strong> ${record.Words}</p>
+                        <p class="text-gray-800"><strong>Kudos:</strong> ${record.Kudos}</p>
+                        <p class="text-gray-800"><strong>Bookmarks:</strong> ${record.Bookmarks}</p>
+                        <p class="text-gray-800"><strong>Hits:</strong> ${record.Hits}</p>
+                        <p class="text-gray-800"><strong>Comments:</strong> ${record.Comments}</p>
+                        <p class="text-gray-800"><strong>Predicted Popularity:</strong> 
+                            <span class="font-semibold text-[#990000]">${record.Popularity}</span>
+                        </p>
+                    `;
+                    statusMessage.className = "mt-4 p-4 rounded-md bg-green-100 text-green-700 shadow";
+                    statusMessage.style.display = "block";
+
+
+
+                    // refresh Metabase
+                    const metabaseIframe= document.getElementById("metabase-iframe");
+                    if(metabaseIframe) {
+                        metabaseIframe.src = metabaseIframe.src;
+                    }
+
+                    form.reset();
+                } catch (error) {
+                    statusMessage.textContent = "❌ Error: " + error.message;
+                    statusMessage.className = "mt-4 p-3 rounded-md bg-red-100 text-red-700";
+                    statusMessage.style.display = "block";
+                    console.error("Prediction failed:", error);
+                }
+            }) 
+        }
+
+        document.addEventListener("DOMContentLoaded", handlePrediction);
+         
+</script>
+
+</html>
